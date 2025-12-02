@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Student Dropout Prediction</title>
+
+    <!-- Bootstrap 5 CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+      body {
+        background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+        min-height: 100vh;
+        font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      }
+      .card-strong {
+        border-radius: .9rem;
+        box-shadow: 0 8px 28px rgba(15,23,42,0.08);
+      }
+      .hidden { display: none !important; }
+      .pulse {
+        animation: pulse 1.2s infinite;
+      }
+      @keyframes pulse {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+        100% { transform: translateY(0); }
+      }
+      .center-vertical { min-height: 100vh; display: flex; align-items: center; }
+    </style>
+  </head>
+  <body>
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-lg-10">
+          <div class="card card-strong overflow-hidden">
+            <div class="row g-0">
+              
+              <!-- Sidebar -->
+              <div class="col-lg-4 bg-primary text-white p-4 d-flex flex-column justify-content-between">
+                <div>
+                  <h3 class="fw-bold">Dropout Risk Analyzer</h3>
+                  <p class="small text-white-50">
+                    Sign in to use the prediction form. New user? Create account.
+                  </p>
+                </div>
+
+                <div id="sidebar-actions" class="mb-3">
+                  <!-- Buttons injected by JS -->
+                </div>
+
+                <div class="small text-white-50">
+                  <ul class="ps-3">
+                    <li>Model uses 34 features (including dummy variables).</li>
+                    <li class="mt-2">Predictions are illustrative. Validate with real data.</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Main content -->
+              <div class="col-lg-8 p-4">
+                <div class="mb-3 d-flex justify-content-between align-items-start">
+                  <h2 id="main-title" class="h4 mb-0">Student Dropout Prediction Tool</h2>
+                  <div>
+                    <button id="start-predict-btn" class="btn btn-outline-primary hidden">Start Prediction</button>
+                  </div>
+                </div>
+
+                <!-- Server-side model load error -->
+                {% if model_error %}
+                  <div class="alert alert-warning">
+                    <strong>Model load issue:</strong> {{ model_error }}
+                  </div>
+                {% endif %}
+
+                <!-- Prediction Result (from Flask) -->
+                {% if prediction_text %}
+                  <div class="mb-3">
+                    {% if 'YES' in prediction_text %}
+                      <div class="alert alert-danger fw-bold d-flex align-items-center">
+                        <div class="me-2"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-exclamation-circle" viewBox="0 0 16 16"><path d="M8 15A7 7 0 108 1a7 7 0 000 14zM8 4a.905.905 0 01.9.9v3.2a.905.905 0 01-.9.9.905.905 0 01-.9-.9V4.9A.905.905 0 018 4zm0 8a1 1 0 110-2 1 1 0 010 2z"/></svg></div>
+                        <div>{{ prediction_text }}</div>
+                      </div>
+                    {% else %}
+                      <div class="alert alert-success fw-bold">{{ prediction_text }}</div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+
+                <!-- LOGIN form -->
+                <form id="login-form" class="card p-3 mb-3 hidden" onsubmit="handleLogin(event)">
+                  <h5 class="mb-3">Login</h5>
+                  <div class="mb-2">
+                    <label class="form-label small">Email</label>
+                    <input id="login-email" type="email" class="form-control" required placeholder="you@example.com">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">Password</label>
+                    <input id="login-password" type="password" class="form-control" required placeholder="Password">
+                  </div>
+                  <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success">Sign In</button>
+                    <button type="button" class="btn btn-link" onclick="setView('signup')">Create account</button>
+                  </div>
+                </form>
+
+                <!-- SIGNUP form -->
+                <form id="signup-form" class="card p-3 mb-3 hidden" onsubmit="handleSignup(event)">
+                  <h5 class="mb-3">Sign Up</h5>
+                  <div class="mb-2">
+                    <label class="form-label small">Full Name</label>
+                    <input id="signup-name" type="text" class="form-control" required placeholder="John Doe">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">Age</label>
+                    <input id="signup-age" type="number" class="form-control" required min="16" max="100" placeholder="18">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">Email</label>
+                    <input id="signup-email" type="email" class="form-control" required placeholder="you@example.com">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">Password</label>
+                    <input id="signup-password" type="password" class="form-control" required minlength="6" placeholder="At least 6 chars">
+                  </div>
+                  <div class="mb-2">
+                    <label class="form-label small">Confirm Password</label>
+                    <input id="signup-confirm-password" type="password" class="form-control" required placeholder="Repeat password">
+                  </div>
+                  <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Create Account</button>
+                    <button type="button" class="btn btn-link" onclick="setView('login')">Already have account?</button>
+                  </div>
+                </form>
+
+                <!-- PREDICTION form -->
+                <form id="prediction-form" action="{{ url_for('predict') }}" method="post" class="card p-3 hidden">
+                  <h5 class="mb-3">Input Student Metrics</h5>
+
+                  <div class="row g-3">
+                    <div class="col-md-6">
+                      <label class="form-label small">Gender (0:Female,1:Male)</label>
+                      <input name="Gender" id="Gender" type="number" class="form-control" required min="0" max="1" step="1" placeholder="0">
+                    </div>
+                    <div class="col-md-6">
+                      <label class="form-label small">Age</label>
+                      <input name="Age" id="Age" type="number" class="form-control" required min="15" max="100" step="1" placeholder="18">
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label small">Past Class Failures</label>
+                      <input name="Number_of_Failures" id="Number_of_Failures" type="number" class="form-control" required min="0" max="10" step="1" placeholder="0">
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label small">Final Grade (0-20)</label>
+                      <input name="Final_Grade" id="Final_Grade" type="number" class="form-control" required min="0" max="20" step="1" placeholder="15">
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label small">Parental Status (1/2)</label>
+                      <input name="Parental_Status" id="Parental_Status" type="number" class="form-control" required min="1" max="2" step="1" placeholder="1">
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label small">Absences (days)</label>
+                      <input name="Absences" id="Absences" type="number" class="form-control" required min="0" max="365" step="1" placeholder="5">
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label small">Weekly Study Time (hours)</label>
+                      <input name="Study_Time" id="Study_Time" type="number" class="form-control" required min="0" max="168" step="0.5" placeholder="4">
+                    </div>
+
+                    <div class="col-md-6">
+                      <label class="form-label small">Activities (0:No,1:Yes)</label>
+                      <input name="Activities" id="Activities" type="number" class="form-control" required min="0" max="1" step="1" placeholder="1">
+                    </div>
+
+                    <div class="col-12 mt-3">
+                      <button type="submit" class="btn btn-lg btn-success w-100">Predict Dropout Risk</button>
+                    </div>
+                  </div>
+                </form>
+
+                <!-- small helper text -->
+                <div class="mt-3 text-muted small">
+                  The prediction model expects numeric features in a fixed order. If your model requires additional inputs, update both server and form.
+                </div>
+
+              </div>
+            </div> <!-- row g-0 -->
+          </div> <!-- card -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS + Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+      // --- Simple client-side auth simulation ---
+      const AUTH_KEY = 'isAuthenticated_v1';
+      const views = {
+        login: document.getElementById('login-form'),
+        signup: document.getElementById('signup-form'),
+        predict: document.getElementById('prediction-form')
+      };
+      const sidebarActions = document.getElementById('sidebar-actions');
+      const startPredictBtn = document.getElementById('start-predict-btn');
+      let currentView = null;
+
+      function isLoggedIn() {
+        // If server returned prediction (postback), treat user as logged in (optional)
+        // But prefer localStorage flag
+        return localStorage.getItem(AUTH_KEY) === 'true';
+      }
+
+      function setView(view) {
+        currentView = view;
+        // hide all
+        Object.values(views).forEach(el => el.classList.add('hidden'));
+        // show selected
+        if (views[view]) views[view].classList.remove('hidden');
+
+        // update header / start button visibility
+        startPredictBtn.classList.toggle('hidden', view === 'predict' || !isLoggedIn());
+      }
+
+      function updateSidebar() {
+        if (isLoggedIn()) {
+          sidebarActions.innerHTML = `
+            <div class="mb-3">
+              <div class="p-2 bg-white text-dark rounded">Welcome, Authenticated User</div>
+            </div>
+            <div class="d-grid gap-2">
+              <button id="logout-btn" class="btn btn-danger">Logout</button>
+            </div>`;
+          document.getElementById('logout-btn').addEventListener('click', handleLogout);
+          // ensure predict button visible
+          startPredictBtn.classList.remove('hidden');
+        } else {
+          sidebarActions.innerHTML = `
+            <div class="d-grid gap-2">
+              <button id="login-btn" class="btn btn-success">Login</button>
+              <button id="signup-btn" class="btn btn-outline-light">Sign Up</button>
+            </div>`;
+          document.getElementById('login-btn').addEventListener('click', () => setView('login'));
+          document.getElementById('signup-btn').addEventListener('click', () => setView('signup'));
+          startPredictBtn.classList.add('hidden');
+        }
+      }
+
+      // handlers
+      function handleLogin(e) {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        if (!email || !password) {
+          showToast('Please enter email and password', 'danger');
+          return;
+        }
+        // Simulate server auth - in production call API
+        localStorage.setItem(AUTH_KEY, 'true');
+        showToast(`Logged in as ${email}`, 'success');
+        document.getElementById('login-form').reset();
+        updateSidebar();
+        setView('predict');
+      }
+
+      function handleSignup(e) {
+        e.preventDefault();
+        const name = document.getElementById('signup-name').value;
+        const age = document.getElementById('signup-age').value;
+        const pwd = document.getElementById('signup-password').value;
+        const cpwd = document.getElementById('signup-confirm-password').value;
+
+        if (pwd !== cpwd) {
+          showToast('Passwords do not match', 'danger');
+          return;
+        }
+        if (pwd.length < 6) {
+          showToast('Password must be at least 6 characters', 'danger');
+          return;
+        }
+        // Simulate signup success
+        localStorage.setItem(AUTH_KEY, 'true');
+        showToast(`Welcome ${name}! Account created.`, 'success');
+        document.getElementById('signup-form').reset();
+        updateSidebar();
+        setView('predict');
+      }
+
+      function handleLogout() {
+        localStorage.setItem(AUTH_KEY, 'false');
+        showToast('Logged out', 'info');
+        updateSidebar();
+        setView('login');
+      }
+
+      // small toast util
+      function showToast(message, type='info') {
+        const toast = document.createElement('div');
+        const color = (type === 'success') ? 'bg-success text-white' : (type === 'danger' ? 'bg-danger text-white' : 'bg-secondary text-white');
+        toast.className = `toast align-items-center ${color} border-0 show position-fixed top-3 end-3 m-3 p-2 rounded`;
+        toast.role = "alert";
+        toast.innerHTML = `<div class="d-flex"><div class="toast-body">${message}</div><button type="button" class="btn-close btn-close-white ms-2 me-1" onclick="this.closest('.toast').remove()"></button></div>`;
+        document.body.appendChild(toast);
+        setTimeout(()=> { try{ toast.remove() } catch(e){} }, 3000);
+      }
+
+      // Init
+      document.addEventListener('DOMContentLoaded', () => {
+        updateSidebar();
+        // default view depends on auth
+        if (isLoggedIn()) setView('predict'); else setView('login');
+
+        // start predict button click opens prediction form
+        startPredictBtn.addEventListener('click', () => setView('predict'));
+      });
+    </script>
+  </body>
+</html>
